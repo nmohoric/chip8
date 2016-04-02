@@ -17,6 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     CPU
   build-depends:       base >= 4.7 && < 5
+                     , vector == 0.11.0.0
   default-language:    Haskell2010
 
 executable chip8-exe
