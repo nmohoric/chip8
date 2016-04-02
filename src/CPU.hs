@@ -10,6 +10,7 @@ data CPU =
         , registers  :: Registers 
         , delayTimer :: Word8
         , soundTimer :: Word8
+        , i          :: Word16
         , pc         :: Word16
         , sp         :: Word8
         , stack      :: Vector Word16
