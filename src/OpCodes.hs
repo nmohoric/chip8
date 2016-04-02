@@ -3,6 +3,7 @@ module OpCodes where
 import Data.Word (Word8, Word16)
 import Data.Bits
 import CPU
+import Lens.Micro
 
 handleOpCode :: Word16 -> CPU
 handleOpCode code =
@@ -25,7 +26,7 @@ handleOpCode code =
       0xF -> undefined -- LD (lots of them)
 
 jump :: CPU -> Word16 -> CPU
-jump cpu val = cpu { CPU.pc = val } 
+jump cpu val = cpu & pc .~ val
 
 operation :: Word16 -> Word16
 operation x = (x .&. 0xF000) `shiftR` 12
