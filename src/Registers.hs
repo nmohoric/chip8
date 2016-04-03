@@ -6,6 +6,7 @@ module Registers (
            , addRegisters
            , subtractFromRegister
            , subtractRegisters
+           , maybeIntegral
            ) where
 
 import Data.Word (Word8,Word16)
