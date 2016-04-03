@@ -6,7 +6,8 @@ import Data.Word (Word8,Word16)
 import Data.Vector
 import Registers
 import Lens.Micro.TH (makeLenses)
-import Lens.Micro ((%~))
+import Lens.Micro ((.~), (%~), (&))
+import Lens.Micro.Mtl (view)
 
 -- http://devernay.free.fr/hacks/chip8/C8TECH10.HTM#2.0
 data CPU = 
@@ -26,3 +27,11 @@ makeLenses ''CPU
 
 increasePC :: CPU -> CPU
 increasePC = pc %~ (+2)
+
+decreaseTimers :: CPU -> CPU
+decreaseTimers cpu = cpu & delayTimer %~ (\x -> if x == 0 then 0 else x - 1)
+                         & soundTimer %~ (\x -> if x == 0 then 0 else x - 1)
+
+
+setI :: CPU -> Word16 -> CPU
+setI cpu val = cpu & i .~ val 
