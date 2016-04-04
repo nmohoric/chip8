@@ -12,7 +12,8 @@ import Registers
 handleOpCode :: CPU -> Word16 -> CPU
 handleOpCode cpu code =
     case operation code of
-      0x0 -> undefined -- SYS, CLS, RET 
+      0x0 -> cpu & set message "Zero" 
+                 & increasePC -- SYS, CLS, RET 
       0x1 -> jump cpu $ addr code
       0x2 -> call cpu $ addr code
       0x3 -> skip cpu (==) (getRegister (view registers cpu) (vx code)) (Just $ byte code)
@@ -20,23 +21,25 @@ handleOpCode cpu code =
       0x5 -> skip cpu (==) (getRegister (view registers cpu) (vx code)) (getRegister (view registers cpu) (vy code))
       0x6 -> load cpu (vx code) (byte code) 
       0x7 -> add cpu (vx code) (byte code)
-      0x8 -> undefined -- LD vx vy, OR/And/XOR/ADD/SUB/SHR/SUBN/SHL
+      0x8 -> cpu & set message "8" -- LD vx vy, OR/And/XOR/ADD/SUB/SHR/SUBN/SHL
       0x9 -> skip cpu (/=) (getRegister (view registers cpu) (vx code)) (getRegister (view registers cpu) (vy code))
       0xA -> setI cpu $ addr code
       0xB -> jump cpu (maybeIntegral (getRegister (view registers cpu) 0) + (addr code))
-      0xC -> undefined -- RND vx byte
-      0xD -> undefined -- DRW vx vy nibble
-      0xE -> undefined -- SKP vx, SKNP vx
-      0xF -> undefined -- LD (lots of them)
+      0xC -> cpu & set message "C" -- RND vx byte
+      0xD -> cpu & set message "D" -- DRW vx vy nibble
+      0xE -> cpu & set message "E" -- SKP vx, SKNP vx
+      0xF -> cpu & set message "F" -- LD (lots of them)
 
 jump :: CPU -> Word16 -> CPU
 jump cpu val = cpu & pc .~ val
+                   & increasePC
 
 call :: CPU -> Word16 -> CPU
 call cpu val = jump (addToStack cpu val) val
 
 load :: CPU -> Word8 -> Word8 -> CPU
 load cpu vx byte = cpu & registers %~ (// [(fromIntegral vx, byte)])
+                       & increasePC
 
 add :: CPU -> Word8 -> Word8 -> CPU
 add cpu vx byte =
@@ -46,6 +49,7 @@ add cpu vx byte =
                    + byte)
                    ]
               )
+        & increasePC
 
 skip :: CPU -> (Word8 -> Word8 -> Bool) -> Maybe Word8 -> Maybe Word8 -> CPU
 skip cpu f Nothing _ = cpu
@@ -73,3 +77,5 @@ byte x = fromIntegral $ x .&. 0x00FF
 nibble :: Word16 -> Word16
 nibble x = x .&. 0x000F
 
+word8to16 :: Word8 -> Word8 -> Word16
+word8to16 h l = shift (fromIntegral h) 8 .|. fromIntegral l
