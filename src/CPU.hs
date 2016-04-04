@@ -51,3 +51,4 @@ decreaseTimers cpu = cpu & delayTimer %~ (\x -> if x == 0 then 0 else x - 1)
 
 setI :: CPU -> Word16 -> CPU
 setI cpu val = cpu & i .~ val 
+                   & increasePC
