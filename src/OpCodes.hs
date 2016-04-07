@@ -1,13 +1,17 @@
 module OpCodes where
 
+import Control.Applicative (pure)
 import Data.Word (Word8, Word16)
 import Data.Bits
-import Data.Vector ((//), (!))
+import qualified Data.Vector as V ((//), (!), slice, toList, fromList, update)
 import Lens.Micro
 import Lens.Micro.Mtl (view)
 import CPU
 import Stack
 import Registers
+import Display (clearDisplay)
+import Data.Char (digitToInt)
+import Stack (getSP)
 
 data BitwiseOp = 
             OR
@@ -23,8 +27,11 @@ data BitwiseOp =
 handleOpCode :: CPU -> Word16 -> CPU
 handleOpCode cpu code =
     case operation code of
-      0x0 -> cpu & set message "Zero" 
-                 & increasePC -- SYS, CLS, RET 
+      0x0 -> case byte code of
+               0xE0 -> cpu & clearDisplay
+                           & increasePC
+               0xEE -> subReturn cpu
+               _    -> jump cpu $ addr code
       0x1 -> jump cpu $ addr code
       0x2 -> call cpu $ addr code
       0x3 -> skip cpu (==) (getRegister (view registers cpu) (vx code)) (Just $ byte code)
@@ -33,7 +40,7 @@ handleOpCode cpu code =
       0x6 -> load cpu (vx code) (byte code) 
       0x7 -> add cpu (vx code) (byte code)
       0x8 -> case nibble code of
-               0x0 -> load cpu (vx code) ((view registers cpu) ! (fromIntegral (vy code)))
+               0x0 -> load cpu (vx code) ((view registers cpu) V.! (fromIntegral (vy code)))
                0x1 -> load cpu (vx code) (bitwise OR cpu code)
                0x2 -> load cpu (vx code) (bitwise AND cpu code)
                0x3 -> load cpu (vx code) (bitwise XOR cpu code)
@@ -55,13 +62,15 @@ handleOpCode cpu code =
       0xF -> case byte code of
                0x07 -> load cpu (vx code) (fromIntegral (view delayTimer cpu)) 
                0x0A -> undefined -- LD Vx, K (keyboard)
-               0x15 -> undefined
-               0x18 -> undefined
-               0x1E -> undefined
-               0x29 -> undefined
-               0x33 -> undefined
-               0x55 -> undefined
-               0x65 -> undefined
+               0x15 -> cpu & delayTimer .~ (regVal cpu (vx code))
+                           & increasePC
+               0x18 -> cpu & soundTimer .~ (regVal cpu (vx code))
+                           & increasePC
+               0x1E -> setI cpu ((fromIntegral (regVal cpu (vx code) )) + (view i cpu))
+               0x29 -> setI cpu (fromIntegral (regVal cpu (vx code)) * 5) 
+               0x33 -> loadBCD cpu (regVal cpu (vx code)) (fromIntegral $ view i cpu)
+               0x55 -> regsToMem cpu (fromIntegral (view i cpu)) (vx code) 
+               0x65 -> memToRegs cpu (fromIntegral (view i cpu)) (vx code)
 
 jump :: CPU -> Word16 -> CPU
 jump cpu val = cpu & pc .~ val
@@ -71,13 +80,13 @@ call :: CPU -> Word16 -> CPU
 call cpu val = jump (addToStack cpu val) val
 
 load :: CPU -> Word8 -> Word8 -> CPU
-load cpu vx byte = cpu & registers %~ (// [(fromIntegral vx, byte)])
+load cpu vx byte = cpu & registers %~ (V.// [(fromIntegral vx, byte)])
                        & increasePC
 
 add :: CPU -> Word8 -> Word8 -> CPU
 add cpu vx byte =
     cpu & registers %~
-              (// [(fromIntegral vx,
+              (V.// [(fromIntegral vx,
                    (maybeIntegral $ getRegister (view registers cpu) vx)
                    + byte)
                    ]
@@ -100,7 +109,7 @@ skipKey cpu f (Just vx) =
         else cpu & increasePC
       
   where
-    key = (view input cpu) ! (fromIntegral vx)
+    key = (view input cpu) V.! (fromIntegral vx)
 
 operation :: Word16 -> Word16
 operation x = (x .&. 0xF000) `shiftR` 12
@@ -134,4 +143,27 @@ bitwise SUBN cpu code = undefined
 bitwise SHL cpu code  = undefined
 
 regVal :: CPU -> Word8 -> Word8
-regVal cpu i = (view registers cpu) ! (fromIntegral i)
+regVal cpu i = (view registers cpu) V.! (fromIntegral i)
+
+regsToMem :: CPU -> Int -> Word8 -> CPU
+regsToMem cpu i vx = cpu & over memory (`V.update` V.fromList (zip [i..] regs))
+                         & increasePC
+    where regs = V.toList $ V.slice 0 (fromIntegral vx) (view registers cpu)
+
+memToRegs :: CPU -> Int -> Word8 -> CPU
+memToRegs cpu i vx = cpu & over registers (`V.update` V.fromList (zip [0..(fromIntegral vx)] mems))
+                         & increasePC
+    where mems = V.toList $ V.slice i (fromIntegral vx) (view memory cpu)
+
+loadBCD :: CPU -> Word8 -> Int -> CPU
+loadBCD cpu vx i = cpu & over memory (`V.update` V.fromList (zip [i,i+1,i+2] bcd))
+    where 
+          bcd = map (\x -> fromIntegral $ digitToInt x) (show $ fromIntegral vx) 
+
+subReturn :: CPU -> CPU
+subReturn cpu = cpu & set pc (view stack cpu V.! getSP cpu)
+                    & over sp (\x -> x-1)
+                    & increasePC
+
+draw :: CPU -> Word8 -> Word8 -> Word8 -> CPU
+draw cpu vx vy nib = undefined
