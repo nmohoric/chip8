@@ -3,7 +3,7 @@ module OpCodes where
 import Control.Applicative (pure)
 import Data.Word (Word8, Word16)
 import Data.Bits
-import qualified Data.Vector as V ((//), (!), slice, toList, fromList, update)
+import qualified Data.Vector as V ((//), (!), slice, toList, fromList, update, drop)
 import Lens.Micro
 import Lens.Micro.Mtl (view)
 import CPU
@@ -165,5 +165,10 @@ subReturn cpu = cpu & set pc (view stack cpu V.! getSP cpu)
                     & over sp (\x -> x-1)
                     & increasePC
 
-draw :: CPU -> Word8 -> Word8 -> Word8 -> CPU
-draw cpu vx vy nib = undefined
+--draw :: CPU -> Word8 -> Word8 -> Word8 -> Word16 -> CPU
+--draw cpu vx vy nib i = cpu & over graphics (`V.update` V.fromList (zip [(fromIntegral vx)..(fromIntegral vy)] (zipWith (\a b -> xor (fromIntegral a) (fromIntegral b)) membytes gfx)))
+--    where
+--      membytes = V.slice (fromIntegral i) ((fromIntegral i) + (fromIntegral nib)) (view memory cpu)  
+--      gfx      = V.drop (fromIntegral vx) (view graphics cpu)
+
+

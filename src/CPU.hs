@@ -37,7 +37,7 @@ initCPU = CPU { _memory     = V.replicate 4096 0
               , _sp         = 0
               , _stack      = V.replicate 12 0
               , _input      = V.replicate 16 False
-              , _graphics   = V.replicate (64 * 32) False
+              , _graphics   = V.replicate (64 * 32) True 
               , _message    = ""
               }
               
